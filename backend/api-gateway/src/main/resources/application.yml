@@ -1,0 +1,99 @@
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/users/**
+
+        - id: admin-user-service
+          uri: ${USER_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/admin/users/**
+
+        - id: account-service
+          uri: ${ACCOUNT_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/accounts/**
+
+        - id: transaction-service
+          uri: ${TRANSACTION_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/transactions/**
+
+        - id: wallet-service
+          uri: ${WALLET_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/wallet/**
+
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/v1/notifications/**
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+        - name: CircuitBreaker
+          args:
+            name: defaultCircuitBreaker
+            fallbackUri: forward:/fallback
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:[*]"   # Swagger UIs on any local port
+              - "https://*.ramani.com"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - "Authorization"
+            allowCredentials: true
+            maxAge: 3600
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET:must-be-at-least-256-bits-long-secret-key-for-hs256}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus
+  endpoint:
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.ramani.banking: INFO
